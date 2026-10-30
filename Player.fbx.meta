@@ -3,7 +3,17 @@ guid: 91c1e892a30e729409921f4f8fcf2687
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: tripo_node_c902d50f_942b_4f5b_8747_d20510ce33a0_materialmat
+    second: {fileID: 2100000, guid: a2b83b4d6a0affe4984bd90c0ea01024, type: 2}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: Player(van+no+Skeleton)_basecolor
+    second: {fileID: 2800000, guid: bf6f996deebc9e9429d5ad19aa4bcab0, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

@@ -3,50 +3,65 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float speed = 5f;
-    [SerializeField] private float rotationSpeed;
-    [SerializeField] private float jumpSpeed;
-    [SerializeField] private float jumpButtonGracePeriod;
-    [SerializeField] private float jumpHorizontalSpeed;
+    [SerializeField] private float runSpeed = 10f;
+    [SerializeField] private float jumpSpeed = 5f;
+    [SerializeField] private float jumpButtonGracePeriod = 0.2f;
+    [SerializeField] private float mouseSensitivity = 2f;
     [SerializeField] private Transform cameraTransform;
+
+    // 카메라 Bob 설정
+    [SerializeField] private float bobFrequency = 5f;
+    [SerializeField] private float bobAmplitude = 0.08f;
+    [SerializeField] private float runBobFrequency = 10f;
+    [SerializeField] private float runBobAmplitude = 0.15f;
 
     private Animator animator;
     private CharacterController characterController;
     private float ySpeed;
-    private float originalStepOffset;
+    private float xRotation = 0f;
+    private float bobTimer = 0f;
+    private Vector3 cameraOriginalLocalPos;
     private float? lastGroundedTime;
     private float? jumpButtonPressedTime;
     private bool isJumping;
     private bool isGrounded;
-    private Vector3 movementDirection;
-    private float inputMagnitude;
 
     void Start()
     {
         animator = GetComponent<Animator>();
         characterController = GetComponent<CharacterController>();
-        originalStepOffset = characterController.stepOffset;
+        Cursor.lockState = CursorLockMode.Locked;
+        cameraOriginalLocalPos = cameraTransform.localPosition;
         lastGroundedTime = Time.time;
         isGrounded = true;
-        animator.SetBool("IsGrounded", true);
+        if (animator != null)
+            animator.SetBool("IsGrounded", true);
     }
 
     void Update()
     {
+        // 마우스로 카메라 상하 회전
+        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
+
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
+        cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        transform.Rotate(Vector3.up * mouseX);
+
+        // WASD 이동
         float horizontalInput = Input.GetAxis("Horizontal");
         float verticalInput = Input.GetAxis("Vertical");
 
-        Vector3 inputDirection = new Vector3(horizontalInput, 0, verticalInput);
-        inputMagnitude = Mathf.Clamp01(inputDirection.magnitude);
+        bool isRunning = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        float currentSpeed = isRunning ? runSpeed : speed;
+        float inputMagnitude = Mathf.Clamp01(new Vector3(horizontalInput, 0, verticalInput).magnitude);
 
-        bool isRunning = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && inputMagnitude > 0.1f;
+        Vector3 moveDirection = transform.right * horizontalInput + transform.forward * verticalInput;
+        moveDirection.y = 0f;
 
-        animator.SetBool("IsMoving", inputMagnitude > 0.1f);
-        animator.SetBool("IsRunning", isRunning);
-        animator.SetFloat("InputMagnitude", inputMagnitude, 0.05f, Time.deltaTime);
-
-        movementDirection = Quaternion.AngleAxis(cameraTransform.rotation.eulerAngles.y, Vector3.up) * inputDirection;
-        movementDirection.Normalize();
-
+        // 중력
         ySpeed += Physics.gravity.y * Time.deltaTime;
 
         if (characterController.isGrounded)
@@ -57,25 +72,26 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (Input.GetButtonDown("Jump"))
-        {
             jumpButtonPressedTime = Time.time;
-        }
 
         if (Time.time - lastGroundedTime <= jumpButtonGracePeriod)
         {
-            characterController.stepOffset = originalStepOffset;
-
-            animator.SetBool("IsGrounded", true);
+            characterController.stepOffset = 0.3f;
             isGrounded = true;
-            animator.SetBool("IsJumping", false);
+            if (animator != null)
+            {
+                animator.SetBool("IsGrounded", true);
+                animator.SetBool("IsJumping", false);
+                animator.SetBool("IsFalling", false);
+            }
             isJumping = false;
-            animator.SetBool("IsFalling", false);
 
             if (Time.time - jumpButtonPressedTime <= jumpButtonGracePeriod)
             {
                 ySpeed = jumpSpeed;
-                animator.SetBool("IsJumping", true);
                 isJumping = true;
+                if (animator != null)
+                    animator.SetBool("IsJumping", true);
                 jumpButtonPressedTime = null;
                 lastGroundedTime = null;
             }
@@ -83,36 +99,49 @@ public class PlayerMovement : MonoBehaviour
         else
         {
             characterController.stepOffset = 0;
-            animator.SetBool("IsGrounded", false);
             isGrounded = false;
-
-            if ((isJumping && ySpeed < 0) || ySpeed < -2)
+            if (animator != null)
             {
-                animator.SetBool("IsFalling", true);
+                animator.SetBool("IsGrounded", false);
+                if ((isJumping && ySpeed < 0) || ySpeed < -2)
+                    animator.SetBool("IsFalling", true);
             }
         }
 
-        if (movementDirection != Vector3.zero)
+        // 애니메이션 파라미터
+        if (animator != null)
         {
-            Quaternion toRotation = Quaternion.LookRotation(movementDirection, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
+            animator.SetBool("IsMoving", inputMagnitude > 0.1f);
+            animator.SetBool("IsRunning", isRunning && inputMagnitude > 0.1f);
+            animator.SetBool("IsBackward", verticalInput < -0.1f);
+            animator.SetBool("IsStrafingLeft", horizontalInput < -0.1f && Mathf.Abs(verticalInput) < 0.1f);
+            animator.SetBool("IsStrafingRight", horizontalInput > 0.1f && Mathf.Abs(verticalInput) < 0.1f);
+            animator.SetFloat("InputMagnitude", inputMagnitude, 0.05f, Time.deltaTime);
         }
 
-        float currentSpeed = isRunning ? speed * 2f : speed;
-        Vector3 velocity = movementDirection * inputMagnitude * currentSpeed;
+        Vector3 velocity = moveDirection.normalized * currentSpeed;
         velocity.y = ySpeed;
         characterController.Move(velocity * Time.deltaTime);
+
+        // 카메라 Bob 효과
+        bool isMoving = inputMagnitude > 0.1f && characterController.isGrounded;
+        if (isMoving)
+        {
+            float freq = isRunning ? runBobFrequency : bobFrequency;
+            float amp = isRunning ? runBobAmplitude : bobAmplitude;
+            bobTimer += Time.deltaTime * freq;
+            Vector3 bobOffset = new Vector3(0, Mathf.Sin(bobTimer) * amp, 0);
+            cameraTransform.localPosition = Vector3.Lerp(cameraTransform.localPosition, cameraOriginalLocalPos + bobOffset, Time.deltaTime * 10f);
+        }
+        else
+        {
+            bobTimer = 0f;
+            cameraTransform.localPosition = Vector3.Lerp(cameraTransform.localPosition, cameraOriginalLocalPos, Time.deltaTime * 10f);
+        }
     }
 
     private void OnApplicationFocus(bool focus)
     {
-        if (focus)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.None;
-        }
+        Cursor.lockState = focus ? CursorLockMode.Locked : CursorLockMode.None;
     }
 }
