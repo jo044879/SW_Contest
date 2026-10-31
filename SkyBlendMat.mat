@@ -110,7 +110,7 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
-    - _Blend: 0.087326184
+    - _Blend: 0.0041791615
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
     - _ClearCoatMask: 0
@@ -123,7 +123,7 @@ Material:
     - _DstBlendAlpha: 0
     - _EnvironmentReflections: 1
     - _EveningPos: 0.6
-    - _Exposure: 1.0064638
+    - _Exposure: 1.0000156
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
