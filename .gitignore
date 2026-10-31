@@ -6,5 +6,8 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 .vs/
+.vscode/
+.vsconfig
+_Recovery/
 *.csproj
 *.sln
